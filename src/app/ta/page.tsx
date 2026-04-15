@@ -5,6 +5,8 @@ import { useTheme } from "next-themes";
 import { Moon, Sun, QrCode, Hash, Users, ShieldAlert, Download, UserPlus, Clock, CheckCircle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { db } from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { 
   doc, collection, onSnapshot, serverTimestamp, 
   writeBatch, increment, getDocs, query, orderBy 
@@ -25,6 +27,17 @@ async function generateClientTOTP(secret: string, timeWindow: number): Promise<s
 export default function TADashboard() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
+  // 1. Listen for the logged-in user
+  const auth = getAuth();
+  const [user, loading] = useAuthState(auth);
+
+  // 2. THE VIP LIST (Replace with actual emails!)
+  const AUTHORIZED_TAS = [
+    "devesh.c@ahduni.edu.in",
+    "jainil.something@ahduni.edu.in", 
+    "yash.something@ahduni.edu.in"
+  ];
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -197,7 +210,29 @@ export default function TADashboard() {
     }
     setIsExporting(false);
   };
-
+// 3. THE BOUNCER (Locks the page if not on the VIP list)
+  if (!loading && (!user || !AUTHORIZED_TAS.includes(user.email || ""))) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+        <div className="p-8 bg-surface border-2 border-accentRed/50 rounded-xl shadow-2xl text-center max-w-md w-full">
+          <h2 className="text-2xl font-bold text-accentRed mb-2 uppercase tracking-wider">Access Restricted</h2>
+          <div className="h-1 w-16 bg-accentRed mx-auto mb-4 rounded-full"></div>
+          <p className="text-textSecondary font-medium">
+            You do not have administrative privileges. 
+          </p>
+          <p className="text-sm text-textSecondary/70 mt-4">
+            Only authorized Teaching Assistants can access this secure portal. Your attempt has been logged.
+          </p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="mt-8 w-full bg-background border border-textSecondary hover:border-textPrimary text-textPrimary py-3 rounded-lg transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!mounted) return null;
 
   return (

@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun, AlertOctagon, ShieldAlert } from "lucide-react";
 import ActiveSessionModal from "@/components/ActiveSessionModal";
-import { db, auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, collection, onSnapshot, query, where, limit, collectionGroup } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { doc, collection, onSnapshot, query, where, limit, collectionGroup, getDoc, setDoc, getDocs, serverTimestamp } from "firebase/firestore";
 
 const COURSE_ID = "CSE203";
 const TOTAL_REQUIRED_PERCENTAGE = 0.75;
@@ -15,11 +16,45 @@ const TOTAL_SESSIONS = 26;
 export default function StudentDashboard() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const auth = getAuth();
+  const [user] = useAuthState(auth);
   const [mounted, setMounted] = useState(false);
   
   // Auth & User State
   const [studentRollNo, setStudentRollNo] = useState<string | null>(null);
   const [idToken, setIdToken] = useState<string>("");
+
+  // --- FIRST-CLAIM PROTOCOL STATES ---
+  const [officialRollNo, setOfficialRollNo] = useState<string | null>(null);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [claimInput, setClaimInput] = useState("");
+  const [claimError, setClaimError] = useState("");
+
+  // 1. INVISIBLE IDENTITY CHECK
+  useEffect(() => {
+    const checkIdentity = async () => {
+      // Wait until we know who is logged in
+      if (!user?.email) return;
+
+      try {
+        // Look up their email in our secure directory
+        const userDocRef = doc(db, "student_directory", user.email);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          // Identity verified! Load their AU number securely into memory
+          setOfficialRollNo(userDoc.data().rollNo);
+        } else {
+          // No identity found. Lock the screen and trigger the First-Claim pop-up
+          setShowRegistration(true);
+        }
+      } catch (error) {
+        console.error("Error checking identity:", error);
+      }
+    };
+
+    checkIdentity();
+  }, [user]);
 
   // Session State
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -29,28 +64,28 @@ export default function StudentDashboard() {
   const [totalConducted, setTotalConducted] = useState(0);
   const [attended, setAttended] = useState(0);
 
+  // 1. Hydration fix for Dark Mode
   useEffect(() => {
     setMounted(true);
+  }, []);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+  // 2. Domain Restriction & Token Fetch
+  useEffect(() => {
+    const verifyDomainAndToken = async () => {
       if (user && user.email) {
+        // Kick out anyone not using a university email
         if (!user.email.endsWith("@ahduni.edu.in")) {
           router.push("/");
           return;
         }
         
-        const roll = user.email.split('@')[0].toUpperCase();
-        setStudentRollNo(roll);
-        
+        // Grab the secure token for your database submissions
         const token = await user.getIdToken();
         setIdToken(token);
-      } else {
-        router.push("/");
       }
-    });
-
-    return () => unsubscribeAuth();
-  }, [router]);
+    };
+    verifyDomainAndToken();
+  }, [user, router]);
 
   useEffect(() => {
     if (!studentRollNo) return;
@@ -138,7 +173,7 @@ export default function StudentDashboard() {
       <main className="max-w-4xl mx-auto space-y-8">
         <div className="bg-surface border-l-4 border-accentRed p-6 rounded-r-lg shadow-md">
           <h2 className="text-2xl font-bold">{COURSE_ID} - Object Oriented Programming</h2>
-          <p className="text-textSecondary">Section 1 • TA: Shashwat.G</p>
+          <p className="text-textSecondary">Section 2 • TA: Shashwat.G</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
