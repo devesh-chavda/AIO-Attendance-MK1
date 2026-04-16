@@ -94,7 +94,7 @@ export default function StudentDashboard() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (!studentRollNo) return;
+    if (!officialRollNo) return;
 
     // 3. DYNAMIC STATS: Listen to Course Total
     const courseUnsub = onSnapshot(doc(db, `courses/${COURSE_ID}`), (docSnap) => {
@@ -105,7 +105,7 @@ export default function StudentDashboard() {
 
     // 4. DYNAMIC STATS: Collection Group Query for Student's Attendance
     // NOTE: Requires a Firestore Index on 'submissions' collection group for 'rollNo'
-    const statsQuery = query(collectionGroup(db, 'submissions'), where('rollNo', '==', studentRollNo));
+    const statsQuery = query(collectionGroup(db, 'submissions'), where('rollNo', '==', officialRollNo));
     const statsUnsub = onSnapshot(statsQuery, (snapshot) => {
       setAttended(snapshot.size);
     });
@@ -126,7 +126,7 @@ export default function StudentDashboard() {
       statsUnsub();
       sessionUnsub();
     };
-  }, [studentRollNo]);
+  }, [officialRollNo]);
 
   // Calculations
   const holidaysTaken = totalConducted - attended;
