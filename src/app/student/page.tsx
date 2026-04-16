@@ -152,7 +152,65 @@ export default function StudentDashboard() {
       </div>
     );
   }
+// THE TRAPDOOR: First-Time Setup
+  if (showRegistration) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 text-textPrimary">
+        <div className="p-8 bg-surface border-2 border-accentRed/50 rounded-xl shadow-2xl max-w-md w-full">
+          <h2 className="text-2xl font-bold text-accentRed mb-2 uppercase tracking-wider">Identity Setup</h2>
+          <div className="h-1 w-16 bg-accentRed mb-6 rounded-full"></div>
+          
+          <p className="mb-6 text-textSecondary font-medium">
+            Please enter your official University Roll Number to permanently link it to this email address.
+          </p>
+          
+          <input
+            type="text"
+            placeholder="e.g. AU2540..."
+            value={claimInput}
+            onChange={(e) => {
+              setClaimInput(e.target.value.toUpperCase());
+              setClaimError("");
+            }}
+            className="w-full p-4 mb-2 bg-background border-2 border-textSecondary/30 rounded-lg focus:border-accentRed outline-none uppercase font-mono tracking-widest transition-colors"
+          />
+          
+          {claimError && <p className="text-danger text-sm font-bold mb-4">{claimError}</p>}
+          
+          <div className="bg-warning/10 border border-warning/30 p-4 rounded-lg mb-6">
+             <p className="text-xs text-warning leading-relaxed font-medium">
+               <strong>WARNING:</strong> This action cannot be undone. Any proxy attempts will permanently lock this device to the entered roll number.
+             </p>
+          </div>
 
+          <button
+            onClick={async () => {
+              if (!claimInput.startsWith("AU") || claimInput.length < 5) {
+                setClaimError("Please enter a valid AU Roll Number.");
+                return;
+              }
+              try {
+                // Save to Firestore Student Directory
+                await setDoc(doc(db, "student_directory", user!.email!), {
+                  rollNo: claimInput,
+                  linkedAt: serverTimestamp()
+                });
+                // Update local state to unlock the dashboard
+                setOfficialRollNo(claimInput);
+                setShowRegistration(false);
+              } catch (err) {
+                setClaimError("Network error. Failed to link account.");
+              }
+            }}
+            className="w-full bg-accentRed text-white py-4 rounded-lg font-bold tracking-wider hover:bg-accentRed/80 transition-all active:scale-95 shadow-lg shadow-accentRed/20"
+          >
+            PERMANENTLY LINK
+          </button>
+        </div>
+      </div>
+    );
+  }
+  const displayName = user?.email ? user.email.split('@')[0].toUpperCase() : "STUDENT";
   return (
     <div className="min-h-screen bg-background text-textPrimary p-6 md:p-12 transition-colors duration-300">
       
@@ -167,14 +225,21 @@ export default function StudentDashboard() {
       )}
 
       <header className="flex justify-between items-center mb-10 border-b border-textSecondary/20 pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Student Portal</h1>
-          <p className="text-textSecondary font-mono mt-1">{studentRollNo}</p>
-        </div>
-        <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-3 rounded-full bg-surface border border-textSecondary/20 hover:border-accentRed transition-colors">
-          {theme === "dark" ? <Sun className="w-5 h-5 text-warning" /> : <Moon className="w-5 h-5 text-textPrimary" />}
-        </button>
-      </header>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Student Portal</h1>
+            <p className="text-textSecondary font-mono mt-1">{COURSE_ID} - Section 2</p>
+          </div>
+          
+          {/* Flex container for Name + Dark Mode Button */}
+          <div className="flex items-center gap-6">
+            <span className="text-2xl font-bold tracking-widest text-textPrimary/80 hidden md:block">
+              {displayName}
+            </span>
+            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-3 rounded-full bg-surface hover:bg-background transition-colors border border-textSecondary/20">
+              {theme === "dark" ? <Sun className="w-5 h-5 text-warning" /> : <Moon className="w-5 h-5 text-textPrimary" />}
+            </button>
+          </div>
+        </header>
 
       <main className="max-w-4xl mx-auto space-y-8">
         <div className="bg-surface border-l-4 border-accentRed p-6 rounded-r-lg shadow-md">
